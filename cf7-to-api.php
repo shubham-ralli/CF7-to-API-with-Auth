@@ -2,7 +2,7 @@
 /*
 Plugin Name: CF7 to API with Auth
 Description: Sends Contact Form 7 submissions to an external API with options for Basic Auth or Bearer Auth, Input type, HTTP method, and JSON template.
-Version: 8.0
+Version: 8.1
 Author: shubham ralli
 */
 
@@ -24,30 +24,49 @@ function cf7_api_integration_panel_content($post)
     $auth_key = get_post_meta($post->id(), '_cf7_auth_key', true);
     $method = get_post_meta($post->id(), '_cf7_method', true);
     $json_template = get_post_meta($post->id(), '_cf7_json_template', true);
+    $mail_tags = get_mail_tags($post);
 
 ?>
     <h2><?php echo esc_html(__('API Settings', 'cf7-api')); ?></h2>
-    <p><label for="cf7-api-url"><?php _e('API URL:', 'cf7-api'); ?></label>
+    <p>
+        <label for="cf7-api-url"><?php _e('API URL:', 'cf7-api'); ?></label>
         <input type="text" id="cf7-api-url" name="cf7_api_url" value="<?php echo esc_attr($api_url); ?>" size="80" />
     </p>
-    <p><label for="cf7-auth-type"><?php _e('Auth Type:', 'cf7-api'); ?></label>
+    <p>
+        <label for="cf7-auth-type"><?php _e('Auth Type:', 'cf7-api'); ?></label>
         <select id="cf7-auth-type" name="cf7_auth_type">
             <option value="basic" <?php selected($auth_type, 'basic'); ?>>Basic Auth</option>
             <option value="bearer" <?php selected($auth_type, 'bearer'); ?>>Bearer Token</option>
         </select>
     </p>
-    <p><label for="cf7-auth-key"><?php _e('Auth Key/Token:', 'cf7-api'); ?></label>
+    <p>
+        <label for="cf7-auth-key"><?php _e('Auth Key/Token:', 'cf7-api'); ?></label>
         <input type="text" id="cf7-auth-key" name="cf7_auth_key" value="<?php echo esc_attr($auth_key); ?>" size="80" />
     </p>
-    <p><label for="cf7-method"><?php _e('HTTP Method:', 'cf7-api'); ?></label>
+    <p>
+        <label for="cf7-method"><?php _e('HTTP Method:', 'cf7-api'); ?></label>
         <select id="cf7-method" name="cf7_method">
             <option value="POST" <?php selected($method, 'POST'); ?>>POST</option>
             <option value="GET" <?php selected($method, 'GET'); ?>>GET</option>
         </select>
     </p>
-    <p><label for="cf7-json-template"><?php _e('JSON Template:', 'cf7-api'); ?></label>
+    <legend>
+        <?php foreach ($mail_tags as $mail_tag) : ?>
+            <?php if ($mail_tag['type'] === 'checkbox') : ?>
+                <?php foreach ($mail_tag['values'] as $checkbox_row) : ?>
+                    <span class="xml_mailtag mailtag code">[<?php echo $mail_tag['name']; ?>-<?php echo $checkbox_row; ?>]</span>
+                <?php endforeach; ?>
+            <?php else : ?>
+                <span class="xml_mailtag mailtag code">[<?php echo $mail_tag['name']; ?>]</span>
+            <?php endif; ?>
+        <?php endforeach; ?>
+    </legend>
+    <p>
+        <label for="cf7-json-template"><?php _e('JSON Template:', 'cf7-api'); ?></label>
         <textarea id="cf7-json-template" name="cf7_json_template" rows="10" cols="80"><?php echo esc_textarea($json_template); ?></textarea>
     </p>
+
+
 <?php
 }
 
@@ -143,4 +162,30 @@ function replace_placeholders($template, $data)
     }
 
     return $json_data;
+}
+
+function get_mail_tags($post)
+{
+    // Retrieve the mail tags from the post
+    $tags = apply_filters('qs_cf7_collect_mail_tags', $post->scan_form_tags());
+    $mailtags = [];
+
+    foreach ((array) $tags as $tag) {
+        $type = trim($tag['type'], ' *');
+        if (!empty($type) && !empty($tag['name'])) {
+            $mailtags[] = $tag;
+        }
+    }
+
+    return $mailtags;
+}
+
+function is_acceptance_field($field_name, $post)
+{
+    $field = $post->scan_form_tags([
+        'type' => 'acceptance',
+        'name' => $field_name,
+    ]);
+
+    return count($field) == 1;
 }
